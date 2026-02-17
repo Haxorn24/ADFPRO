@@ -3,8 +3,8 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "Copy data1",
-				"type": "Copy",
+				"name": "Get Metadata1",
+				"type": "GetMetadata",
 				"dependsOn": [],
 				"policy": {
 					"timeout": "0.12:00:00",
@@ -15,157 +15,112 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"source": {
-						"type": "DelimitedTextSource",
-						"storeSettings": {
-							"type": "AzureBlobFSReadSettings",
-							"recursive": true,
-							"enablePartitionDiscovery": false
-						},
-						"formatSettings": {
-							"type": "DelimitedTextReadSettings"
-						}
+					"dataset": {
+						"referenceName": "ds_meta",
+						"type": "DatasetReference"
 					},
-					"sink": {
-						"type": "DelimitedTextSink",
-						"storeSettings": {
-							"type": "AzureBlobFSWriteSettings"
-						},
-						"formatSettings": {
-							"type": "DelimitedTextWriteSettings",
-							"quoteAllText": true,
-							"fileExtension": ".txt"
-						}
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"enablePartitionDiscovery": false
 					},
-					"enableStaging": false,
-					"translator": {
-						"type": "TabularTranslator",
-						"mappings": [
-							{
-								"source": {
-									"name": "driver_id",
-									"type": "String",
-									"physicalType": "String"
-								},
-								"sink": {
-									"name": "driver_id",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "first_name",
-									"type": "String",
-									"physicalType": "String"
-								},
-								"sink": {
-									"name": "first_name",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "last_name",
-									"type": "String",
-									"physicalType": "String"
-								},
-								"sink": {
-									"name": "last_name",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "phone_number",
-									"type": "String",
-									"physicalType": "String"
-								},
-								"sink": {
-									"name": "phone_number",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "vehicle_id",
-									"type": "String",
-									"physicalType": "String"
-								},
-								"sink": {
-									"name": "vehicle_id",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "driver_rating",
-									"type": "String",
-									"physicalType": "String"
-								},
-								"sink": {
-									"name": "driver_rating",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "city",
-									"type": "String",
-									"physicalType": "String"
-								},
-								"sink": {
-									"name": "city",
-									"type": "String",
-									"physicalType": "String"
-								}
-							},
-							{
-								"source": {
-									"name": "last_updated_timestamp",
-									"type": "String",
-									"physicalType": "String"
-								},
-								"sink": {
-									"name": "last_updated_timestamp",
-									"type": "String",
-									"physicalType": "String"
-								}
-							}
-						],
-						"typeConversion": true,
-						"typeConversionSettings": {
-							"allowDataTruncation": true,
-							"treatBooleanAsNumber": false
-						}
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
 					}
-				},
-				"inputs": [
+				}
+			},
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
 					{
-						"referenceName": "ds_csv_dynamic",
-						"type": "DatasetReference",
-						"parameters": {
-							"p_container": "source",
-							"p_folder": "files",
-							"p_file": "drivers.csv"
-						}
+						"activity": "Get Metadata1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
 					}
 				],
-				"outputs": [
-					{
-						"referenceName": "ds_csv_dynamic",
-						"type": "DatasetReference",
-						"parameters": {
-							"p_container": "sink",
-							"p_folder": "test"
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Get Metadata1').output.childItems",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "data load",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"value": "@if(\n    equals(item().name,'customers.csv'),pipeline().parameters.customers_schema,\n    if(\n        equals(item().name,'drivers.csv'),pipeline().parameters.drivers_schema,pipeline().parameters.trips_schema\n       )\n    )",
+									"type": "Expression"
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_csv_dynamic",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_container": "source",
+										"p_folder": "files",
+										"p_file": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_csv_dynamic",
+									"type": "DatasetReference",
+									"parameters": {
+										"p_container": "sink",
+										"p_folder": "schema",
+										"p_file": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							]
 						}
-					}
-				]
+					]
+				}
 			}
 		],
 		"parameters": {
